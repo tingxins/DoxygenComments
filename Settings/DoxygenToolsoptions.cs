@@ -1,4 +1,4 @@
-using EnvDTE;
+﻿using EnvDTE;
 using EnvDTE80;
 using Microsoft.VisualStudio.Settings;
 using Microsoft.VisualStudio.Shell;
@@ -145,7 +145,8 @@ namespace DoxygenComments
         {
             get
             {
-                return GetFormat(HeaderPage, "header");
+                return "/**************************************************************************\n * @fileName $FILENAME\n * @projectName $PROJECTNAME\n * @date $YEAR/$MONTH/$DAY_OF_MONTH\n * @author $USERNAME\n * @brief $BRIEF$END\n * @copyright Copyright © $YEAR Bytedance All rights reserved.\n**************************************************************************/";
+                //return GetFormat(HeaderPage, "header");
             }
             set
             {

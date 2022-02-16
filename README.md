@@ -21,12 +21,12 @@ Or in Visual Studio -> Extensions -> Doxygen Comments
 The following formats are the default formats, but the can be [customized](#Customizing).
 ## Header
 ```cpp
-/*****************************************************************//**
- * \file   sampleClass.h
- * \brief 
+/*******************************************************************
+ * @file   sampleClass.h
+ * @brief 
  *
- * \author Finn 
- * \date   April 2020
+ * @author Finn 
+ * @date   April 2020
 ***********************************************************************/
 ```
 

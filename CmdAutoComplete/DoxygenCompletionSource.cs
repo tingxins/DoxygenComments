@@ -35,9 +35,9 @@ namespace DoxygenComments
             m_compList.Add(new Completion("\\see", "\\see", string.Empty, image, string.Empty));
             m_compList.Add(new Completion("\\include", "\\include", string.Empty, image, string.Empty));
             m_compList.Add(new Completion("\\li", "\\li", string.Empty, image, string.Empty));
-            m_compList.Add(new Completion("\\param", "\\param", string.Empty, image, string.Empty));
+            m_compList.Add(new Completion("@param", "@param", string.Empty, image, string.Empty));
             m_compList.Add(new Completion("\\tparam", "\\tparam", string.Empty, image, string.Empty));
-            m_compList.Add(new Completion("\\brief", "\\brief", string.Empty, image, string.Empty));
+            m_compList.Add(new Completion("@brief", "@brief", string.Empty, image, string.Empty));
             m_compList.Add(new Completion("\\throw", "\\throw", string.Empty, image, string.Empty));
             m_compList.Add(new Completion("\\return", "\\return", string.Empty, image, string.Empty));
             m_compList.Add(new Completion("\\returns", "\\returns", string.Empty, image, string.Empty));

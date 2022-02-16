@@ -121,6 +121,7 @@
     <EmbeddedResource Include="Settings\DoxygenToolsOptionsBase.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>DoxygenToolsOptionsBase.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Settings\DoxygenToolsOptionsControl.resx">
       <DependentUpon>DoxygenToolsOptionsControl.cs</DependentUpon>

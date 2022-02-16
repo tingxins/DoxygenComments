@@ -126,17 +126,17 @@
     <value>/**
  * $BRIEF$END.
  * 
- * \param $PARAMS
- * \return $RETURN
+ * @param $PARAMS
+ * @return $RETURN
  */</value>
   </data>
   <data name="header" xml:space="preserve">
-    <value>/*****************************************************************//**
- * \file   $FILENAME
- * \brief  $BRIEF$END
+    <value>/*******************************************************************
+ * @file   $FILENAME
+ * @brief  $BRIEF$END
  * 
- * \author $USERNAME
- * \date   $MONTHNAME_EN $YEAR
+ * @author $USERNAME
+ * @date   $MONTHNAME_EN $YEAR
  *********************************************************************/</value>
   </data>
 </root>

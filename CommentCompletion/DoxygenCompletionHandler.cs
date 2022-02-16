@@ -608,6 +608,7 @@ namespace DoxygenComments
 
         private string GetFinalFormat(string format, string brief, string spaces, string lineEnding, out int endPos)
         {
+            ThreadHelper.ThrowIfNotOnUIThread();
             /// Remove first two characters, because they are typed already
             format = format.Trim().Substring(2);
 
@@ -667,6 +668,22 @@ namespace DoxygenComments
             {
                 var username = Environment.UserName;
                 format = format.Replace("$USERNAME", username);
+            }
+            if (format.Contains("$PROJECTNAME"))
+            {
+                //string projectName = System.Reflection.Assembly.GetAssembly(typeof(Program)).FullName;
+                //string name = System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0];
+                //string path = Environment.CurrentDirectory;
+                //string path0 = System.IO.Directory.GetCurrentDirectory();
+
+                DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
+                var activeSolutionProjects = dte.ActiveSolutionProjects as Array;
+                if (activeSolutionProjects != null && activeSolutionProjects.Length > 0)
+                {
+                    Project activeProject = activeSolutionProjects.GetValue(0) as Project;
+                    string projectName = activeProject.Name;
+                    format = format.Replace("$PROJECTNAME", projectName);
+                }
             }
 
             if (format.Contains("$END"))
