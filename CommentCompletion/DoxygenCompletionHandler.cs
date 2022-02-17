@@ -673,15 +673,23 @@ namespace DoxygenComments
             {
                 //string projectName = System.Reflection.Assembly.GetAssembly(typeof(Program)).FullName;
                 //string name = System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0];
-                //string path = Environment.CurrentDirectory;
-                //string path0 = System.IO.Directory.GetCurrentDirectory();
+                string path = Environment.CurrentDirectory;
+                string path0 = System.IO.Directory.GetCurrentDirectory();
 
                 DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
+                var activeDocuments = dte.ActiveDocument;
+                var mainWindow = dte.MainWindow;
                 var activeSolutionProjects = dte.ActiveSolutionProjects as Array;
                 if (activeSolutionProjects != null && activeSolutionProjects.Length > 0)
                 {
                     Project activeProject = activeSolutionProjects.GetValue(0) as Project;
                     string projectName = activeProject.Name;
+                    //string filename = activeProject.FileName;
+                    format = format.Replace("$PROJECTNAME", projectName);
+                }else if (mainWindow != null && mainWindow.Caption.Length > 0)
+                {
+                    string caption = mainWindow.Caption;
+                    var projectName = caption.Split('-')[0];
                     format = format.Replace("$PROJECTNAME", projectName);
                 }
             }
