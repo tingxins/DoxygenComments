@@ -13,7 +13,6 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Threading;
 
 namespace DoxygenComments
 {
@@ -78,10 +77,13 @@ namespace DoxygenComments
     {
         public static DoxygenFileSystemWatcher instance;
         //public ITextDocumentFactoryService textDocumentFactory { get; set; }
-        static FileSystemWatcher watcher;
+        //static FileSystemWatcher watcher;
 
         public IDictionary<string, string> results = new Dictionary<string, string>();
         public SettingsHelper m_settings;
+
+        List<String> fileTypes = new List<String>(){ "*.cpp", "*.c", "*.h", "*.m", "*.swift" };
+        List<FileSystemWatcher> watchers = new List<FileSystemWatcher>();
 
         protected DoxygenFileSystemWatcher()
         {
@@ -105,8 +107,6 @@ namespace DoxygenComments
         }
         void tdfs_TextDocumentCreated(object sender, TextDocumentEventArgs e)
         {
-            var a = sender;
-            var b = e;
             System.Diagnostics.Debug.WriteLine("tdfs_TextDocumentCreated");
             // I should manipulate the content of the text document here, but
             // this event handler is not called for documents that are initially
@@ -114,23 +114,17 @@ namespace DoxygenComments
         }
         void SetupWatcher()
         {
-            watcher = new FileSystemWatcher(@"");
-
-            watcher.NotifyFilter = NotifyFilters.Attributes
-                                 | NotifyFilters.CreationTime
-                                 | NotifyFilters.DirectoryName
-                                 | NotifyFilters.FileName
-                                 | NotifyFilters.LastAccess
-                                 | NotifyFilters.LastWrite
-                                 | NotifyFilters.Security
-                                 | NotifyFilters.Size;
-
-            watcher.Created += OnCreated;
-
-            watcher.Filter = "*.*";
-            watcher.IncludeSubdirectories = true;
-            watcher.EnableRaisingEvents = true;
-
+            DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
+            var solutionFullName = dte.Solution.FullName;
+            foreach (string f in fileTypes)
+            {
+                FileSystemWatcher watcher = new FileSystemWatcher(solutionFullName);
+                watcher.Created += OnCreated;
+                watcher.Filter = f;
+                watcher.IncludeSubdirectories = true;
+                watcher.EnableRaisingEvents = true;
+                watchers.Add(watcher);
+            }
             m_settings = new SettingsHelper();
 
         }
@@ -145,7 +139,8 @@ namespace DoxygenComments
                 var fileInfos = fileName.Split('.');
                 if (fileInfos.Length < 2) { return; }
                 var ext = fileInfos[1];
-                if (ext == "cpp" || ext == "h")
+
+                if (DoxygenFileSystemWatcher.instance.fileTypes.Contains("*." + ext))
                 {
                     DoxygenFileSystemWatcher.instance.results.Add(fileName, e.FullPath);
                     System.Diagnostics.Debug.WriteLine("OnCreated: {0}", fileName);
@@ -242,26 +237,12 @@ namespace DoxygenComments
             }
             if (format.Contains("$PROJECTNAME"))
             {
-                //string projectName = System.Reflection.Assembly.GetAssembly(typeof(Program)).FullName;
-                //string name = System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0];
-                string path = Environment.CurrentDirectory;
-                string path0 = System.IO.Directory.GetCurrentDirectory();
-
                 DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
-                var activeDocuments = dte.ActiveDocument;
-                var mainWindow = dte.MainWindow;
-                var activeSolutionProjects = dte.ActiveSolutionProjects as Array;
-                if (activeSolutionProjects != null && activeSolutionProjects.Length > 0)
+                var solutionFullName = dte.Solution.FullName;
+                if (solutionFullName.Length > 0)
                 {
-                    Project activeProject = activeSolutionProjects.GetValue(0) as Project;
-                    string projectName = activeProject.Name;
-                    //string filename = activeProject.FileName;
-                    format = format.Replace("$PROJECTNAME", projectName);
-                }
-                else if (mainWindow != null && mainWindow.Caption.Length > 0)
-                {
-                    string caption = mainWindow.Caption;
-                    var projectName = caption.Split('-')[0];
+                    var splitNames = solutionFullName.Split('\\');
+                    var projectName = splitNames[splitNames.Length - 1];
                     format = format.Replace("$PROJECTNAME", projectName);
                 }
             }

@@ -6,6 +6,7 @@ using Microsoft.VisualStudio.Text;
 using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -672,25 +673,12 @@ namespace DoxygenComments
             }
             if (format.Contains("$PROJECTNAME"))
             {
-                //string projectName = System.Reflection.Assembly.GetAssembly(typeof(Program)).FullName;
-                //string name = System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0];
-                string path = Environment.CurrentDirectory;
-                string path0 = System.IO.Directory.GetCurrentDirectory();
-
                 DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
-                var activeDocuments = dte.ActiveDocument;
-                var mainWindow = dte.MainWindow;
-                var activeSolutionProjects = dte.ActiveSolutionProjects as Array;
-                if (activeSolutionProjects != null && activeSolutionProjects.Length > 0)
+                var solutionFullName = dte.Solution.FullName;
+                if (solutionFullName.Length > 0)
                 {
-                    Project activeProject = activeSolutionProjects.GetValue(0) as Project;
-                    string projectName = activeProject.Name;
-                    //string filename = activeProject.FileName;
-                    format = format.Replace("$PROJECTNAME", projectName);
-                }else if (mainWindow != null && mainWindow.Caption.Length > 0)
-                {
-                    string caption = mainWindow.Caption;
-                    var projectName = caption.Split('-')[0];
+                    var splitNames = solutionFullName.Split('\\');
+                    var projectName = splitNames[splitNames.Length - 1];
                     format = format.Replace("$PROJECTNAME", projectName);
                 }
             }
