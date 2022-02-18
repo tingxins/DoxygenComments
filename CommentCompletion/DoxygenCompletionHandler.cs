@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Globalization;
 using Microsoft.VisualStudio.Shell.Interop;
+using System.Threading;
 using EnvDTE;
 using EnvDTE80;
 

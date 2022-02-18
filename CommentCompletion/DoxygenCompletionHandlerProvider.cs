@@ -9,7 +9,11 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.TextManager.Interop;
 using Microsoft.VisualStudio.Utilities;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
+using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace DoxygenComments
 {
@@ -35,6 +39,8 @@ namespace DoxygenComments
         {
             try
             {
+                //textDocumentFactory.TextDocumentCreated += new EventHandler<TextDocumentEventArgs>(tdfs_TextDocumentCreated);
+                DoxygenFileSystemWatcher.Instance(textDocumentFactory);
                 IWpfTextView textView = this.AdapterService.GetWpfTextView(textViewAdapter);
                 if (textView == null)
                 {
@@ -56,5 +62,218 @@ namespace DoxygenComments
             {
             }
         }
+        /**void tdfs_TextDocumentCreated(object sender, TextDocumentEventArgs e)
+        {
+            var a = sender;
+            var b = e;
+            System.Diagnostics.Debug.WriteLine("tdfs_TextDocumentCreated");
+            // I should manipulate the content of the text document here, but
+            // this event handler is not called for documents that are initially
+            // loaded by the solution or for the first document opened by the user.
+        }*/
     }
+
+
+    public class DoxygenFileSystemWatcher
+    {
+        public static DoxygenFileSystemWatcher instance;
+        //public ITextDocumentFactoryService textDocumentFactory { get; set; }
+        static FileSystemWatcher watcher;
+
+        public IDictionary<string, string> results = new Dictionary<string, string>();
+        public SettingsHelper m_settings;
+
+        protected DoxygenFileSystemWatcher()
+        {
+        }
+        public static DoxygenFileSystemWatcher Instance(ITextDocumentFactoryService textDocument)
+        {
+            // Uses lazy initialization.
+            // Note: this is not thread safe.
+            if (instance == null)
+            {
+                instance = new DoxygenFileSystemWatcher();
+                instance.Setup(textDocument);
+            }
+            return instance;
+        }
+
+        public void Setup(ITextDocumentFactoryService textDocument)
+        {
+            textDocument.TextDocumentCreated += new EventHandler<TextDocumentEventArgs>(tdfs_TextDocumentCreated);
+            SetupWatcher();
+        }
+        void tdfs_TextDocumentCreated(object sender, TextDocumentEventArgs e)
+        {
+            var a = sender;
+            var b = e;
+            System.Diagnostics.Debug.WriteLine("tdfs_TextDocumentCreated");
+            // I should manipulate the content of the text document here, but
+            // this event handler is not called for documents that are initially
+            // loaded by the solution or for the first document opened by the user.
+        }
+        void SetupWatcher()
+        {
+            watcher = new FileSystemWatcher(@"");
+
+            watcher.NotifyFilter = NotifyFilters.Attributes
+                                 | NotifyFilters.CreationTime
+                                 | NotifyFilters.DirectoryName
+                                 | NotifyFilters.FileName
+                                 | NotifyFilters.LastAccess
+                                 | NotifyFilters.LastWrite
+                                 | NotifyFilters.Security
+                                 | NotifyFilters.Size;
+
+            watcher.Created += OnCreated;
+
+            watcher.Filter = "*.*";
+            watcher.IncludeSubdirectories = true;
+            watcher.EnableRaisingEvents = true;
+
+            m_settings = new SettingsHelper();
+
+        }
+
+        private static void OnCreated(object sender, FileSystemEventArgs e)
+        {
+            string value = $"Created: {e.FullPath}";
+            var results = e.FullPath.Split('\\');
+            if(results.Length > 0)
+            {
+                var fileName = results[results.Length - 1];
+                var fileInfos = fileName.Split('.');
+                if (fileInfos.Length < 2) { return; }
+                var ext = fileInfos[1];
+                if (ext == "cpp" || ext == "h")
+                {
+                    DoxygenFileSystemWatcher.instance.results.Add(fileName, e.FullPath);
+                    System.Diagnostics.Debug.WriteLine("OnCreated: {0}", fileName);
+                    string path = e.FullPath;
+                    // Create a file to write to.
+                    string old = "";
+                    var m_settings = DoxygenFileSystemWatcher.instance.m_settings;
+                    using (StreamReader sr = File.OpenText(path))
+                    {
+                        old = sr.ReadToEnd();
+                    }
+                    if (old.Length > 3)
+                    {
+                        var headerShortcut = old.Substring(0, 3);
+                        if (headerShortcut == "/**")
+                        {
+                            return;
+                        }
+                    }
+                    using (StreamWriter sw = File.CreateText(path))
+                    {
+                        string format = m_settings.GetEncodeEscapeChar(m_settings.HeaderFormat);
+                        string headerComment = DoxygenFileSystemWatcher.instance.GetFinalFormat(format, e.FullPath, "", "", "");
+                        string text = headerComment + "\n" + old;
+                        sw.WriteLine(text);
+                    }
+                }
+                /***
+                 * 
+                string file = "";
+                ITextDocument document;
+                if (m_document.TryGetTextDocument(m_textView.TextBuffer, out document))
+                {
+                    var path = document.FilePath.Split('\\');
+                    file = path[path.Length - 1];
+                    var res = DoxygenFileSystemWatcher.instance.results;
+                    if (res.ContainsKey(file))
+                    {
+                        res.Remove(file);
+                    }
+                }
+                 */
+            }
+        }
+
+        private string GetFinalFormat(string format, string filePath, string brief, string spaces, string lineEnding)
+        {
+            //ThreadHelper.ThrowIfNotOnUIThread();
+            /// Use the correct line endings and indent
+            //format = Regex.Replace(format, @"(\r\n)|(\r|\n)", lineEnding + spaces);
+
+            // Replace all variables with the correct values
+            // Specififc variables like $PARAMS and $RETURN must be handled before in
+            // a function specific part
+            if (format.Contains("$BRIEF"))
+            {
+                format = format.Replace("$BRIEF", brief);
+            }
+            if (format.Contains("$MONTH_2"))
+            {
+                var month = DateTime.Now.Month.ToString().PadLeft(2, '0');
+                format = format.Replace("$MONTH_2", month);
+            }
+            if (format.Contains("$MONTH"))
+            {
+                var month = DateTime.Now.Month.ToString();
+                format = format.Replace("$MONTH", month);
+            }
+            if (format.Contains("$DAY_OF_MONTH_2"))
+            {
+                var day = DateTime.Now.Day.ToString().PadLeft(2, '0');
+                format = format.Replace("$DAY_OF_MONTH_2", day);
+            }
+            if (format.Contains("$DAY_OF_MONTH"))
+            {
+                var day = DateTime.Now.Day.ToString();
+                format = format.Replace("$DAY_OF_MONTH", day);
+            }
+            if (format.Contains("$YEAR"))
+            {
+                var year = DateTime.Now.Year.ToString();
+                format = format.Replace("$YEAR", year);
+            }
+            if (format.Contains("$FILENAME"))
+            {
+                var path = filePath.Split('\\');
+                string file = path[path.Length - 1];
+                format = format.Replace("$FILENAME", file);
+            }
+            if (format.Contains("$USERNAME"))
+            {
+                var username = Environment.UserName;
+                format = format.Replace("$USERNAME", username);
+            }
+            if (format.Contains("$PROJECTNAME"))
+            {
+                //string projectName = System.Reflection.Assembly.GetAssembly(typeof(Program)).FullName;
+                //string name = System.Reflection.Assembly.GetExecutingAssembly().FullName.Split(',')[0];
+                string path = Environment.CurrentDirectory;
+                string path0 = System.IO.Directory.GetCurrentDirectory();
+
+                DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
+                var activeDocuments = dte.ActiveDocument;
+                var mainWindow = dte.MainWindow;
+                var activeSolutionProjects = dte.ActiveSolutionProjects as Array;
+                if (activeSolutionProjects != null && activeSolutionProjects.Length > 0)
+                {
+                    Project activeProject = activeSolutionProjects.GetValue(0) as Project;
+                    string projectName = activeProject.Name;
+                    //string filename = activeProject.FileName;
+                    format = format.Replace("$PROJECTNAME", projectName);
+                }
+                else if (mainWindow != null && mainWindow.Caption.Length > 0)
+                {
+                    string caption = mainWindow.Caption;
+                    var projectName = caption.Split('-')[0];
+                    format = format.Replace("$PROJECTNAME", projectName);
+                }
+            }
+
+            if (format.Contains("$END"))
+            {
+                format = format.Replace("$END", "");
+            }
+            format = m_settings.GetDecodedEscapeChar(format);
+
+            return format;
+        }
+    }
+
 }

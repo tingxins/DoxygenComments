@@ -103,7 +103,7 @@ namespace DoxygenComments
         }
     }
 
-    class SettingsHelper
+   public class SettingsHelper
     {
         private const string RegistryPath = @"ApplicationPrivateSettings\DoxygenComments\";
         public const string DefaultPage = "DoxygenToolsOptionsDefault";
@@ -145,7 +145,7 @@ namespace DoxygenComments
         {
             get
             {
-                return "/**************************************************************************\n * @fileName $FILENAME\n * @projectName $PROJECTNAME\n * @date $YEAR/$MONTH/$DAY_OF_MONTH\n * @author $USERNAME\n * @brief $BRIEF$END\n * @copyright Copyright © $YEAR Bytedance All rights reserved.\n**************************************************************************/";
+                return "/**************************************************************************\n * @fileName \t\t$FILENAME\n * @projectName \t$PROJECTNAME\n * @date \t\t\t$YEAR/$MONTH/$DAY_OF_MONTH\n * @author \t\t\t$USERNAME\n * @brief $BRIEF$END\n * @copyright \t\tCopyright © $YEAR Bytedance All rights reserved.\n**************************************************************************/";
                 //return GetFormat(HeaderPage, "header");
             }
             set
