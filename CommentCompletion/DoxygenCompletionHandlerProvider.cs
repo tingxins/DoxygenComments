@@ -12,7 +12,9 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.IO;
+using Microsoft.VisualStudio.Threading;
 using System.Text.RegularExpressions;
+using System.Text;
 
 namespace DoxygenComments
 {
@@ -116,10 +118,19 @@ namespace DoxygenComments
         {
             DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
             var solutionFullName = dte.Solution.FullName;
+            if (Path.HasExtension(solutionFullName))
+            {
+                solutionFullName = Directory.GetParent(solutionFullName).FullName;
+            }
             foreach (string f in fileTypes)
             {
                 FileSystemWatcher watcher = new FileSystemWatcher(solutionFullName);
+
+                /*watcher.NotifyFilter = NotifyFilters.LastAccess
+                                     | NotifyFilters.LastWrite
+                                     | NotifyFilters.Size;*/
                 watcher.Created += OnCreated;
+                watcher.Changed += OnChanged;
                 watcher.Filter = f;
                 watcher.IncludeSubdirectories = true;
                 watcher.EnableRaisingEvents = true;
@@ -129,29 +140,52 @@ namespace DoxygenComments
 
         }
 
+        private static void OnChanged(object sender, FileSystemEventArgs e)
+        {
+            if (e.ChangeType != WatcherChangeTypes.Changed)
+            {
+                return;
+            }
+            Console.WriteLine($"Changed: {e.FullPath}");
+        }
+
         private static void OnCreated(object sender, FileSystemEventArgs e)
+        {
+            /**System.Threading.Timer timer = null;
+            timer = new System.Threading.Timer((obj) =>
+            {
+                tx_onCreateAsync(e);
+                timer.Dispose();
+            },null, 200, System.Threading.Timeout.Infinite);*/
+
+            tx_onCreateAsync(e);
+        }
+
+        private static async System.Threading.Tasks.Task tx_onCreateAsync(FileSystemEventArgs e)
         {
             string value = $"Created: {e.FullPath}";
             var results = e.FullPath.Split('\\');
-            if(results.Length > 0)
+            System.Diagnostics.Debug.WriteLine("Sleep OnCreated: {0}", e.FullPath);
+            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+            if (results.Length > 0)
             {
                 var fileName = results[results.Length - 1];
                 var fileInfos = fileName.Split('.');
                 if (fileInfos.Length < 2) { return; }
                 var ext = fileInfos[1];
 
+                DTE2 dte = Package.GetGlobalService(typeof(SDTE)) as DTE2;
+                var doc = dte.Documents.Item(e.FullPath);
+                doc.Save(e.FullPath);
                 if (DoxygenFileSystemWatcher.instance.fileTypes.Contains("*." + ext))
                 {
-                    DoxygenFileSystemWatcher.instance.results.Add(fileName, e.FullPath);
-                    System.Diagnostics.Debug.WriteLine("OnCreated: {0}", fileName);
+                    //DoxygenFileSystemWatcher.instance.results.Add(fileName, e.FullPath);
                     string path = e.FullPath;
                     // Create a file to write to.
-                    string old = "";
                     var m_settings = DoxygenFileSystemWatcher.instance.m_settings;
-                    using (StreamReader sr = File.OpenText(path))
-                    {
-                        old = sr.ReadToEnd();
-                    }
+
+                    string old = File.ReadAllText(path);
+
                     if (old.Length > 3)
                     {
                         var headerShortcut = old.Substring(0, 3);
@@ -160,29 +194,21 @@ namespace DoxygenComments
                             return;
                         }
                     }
-                    using (StreamWriter sw = File.CreateText(path))
+                    string format = m_settings.GetEncodeEscapeChar(m_settings.HeaderFormat);
+                    string headerComment = DoxygenFileSystemWatcher.instance.GetFinalFormat(format, e.FullPath, "", "", "");
+                    // ReplaceText 方法会中断二次执行，原因未知
+                    //doc.ReplaceText("#", headerComment + "\n#", 0);
+                    using (StreamWriter writer = new StreamWriter(path))
                     {
-                        string format = m_settings.GetEncodeEscapeChar(m_settings.HeaderFormat);
-                        string headerComment = DoxygenFileSystemWatcher.instance.GetFinalFormat(format, e.FullPath, "", "", "");
-                        string text = headerComment + "\n" + old;
-                        sw.WriteLine(text);
+                        writer.WriteLine(headerComment);
+                        writer.WriteLine(old);
+                        writer.Close();
                     }
+                    // 关闭 doc
+                    doc.Close(vsSaveChanges.vsSaveChangesNo);
+                    // 重新打开 doc
+                    dte.ItemOperations.OpenFile(path, EnvDTE.Constants.vsViewKindTextView);
                 }
-                /***
-                 * 
-                string file = "";
-                ITextDocument document;
-                if (m_document.TryGetTextDocument(m_textView.TextBuffer, out document))
-                {
-                    var path = document.FilePath.Split('\\');
-                    file = path[path.Length - 1];
-                    var res = DoxygenFileSystemWatcher.instance.results;
-                    if (res.ContainsKey(file))
-                    {
-                        res.Remove(file);
-                    }
-                }
-                 */
             }
         }
 
@@ -242,7 +268,7 @@ namespace DoxygenComments
                 if (solutionFullName.Length > 0)
                 {
                     var splitNames = solutionFullName.Split('\\');
-                    var projectName = splitNames[splitNames.Length - 1];
+                    var projectName = splitNames[splitNames.Length - 1].Split('.')[0];
                     format = format.Replace("$PROJECTNAME", projectName);
                 }
             }
@@ -252,7 +278,6 @@ namespace DoxygenComments
                 format = format.Replace("$END", "");
             }
             format = m_settings.GetDecodedEscapeChar(format);
-
             return format;
         }
     }
